@@ -14,6 +14,7 @@ Most parameters that I could figure out from the cryptic API docs are defined an
 
 ## Installation
 
+### From PyPI
 To install into your project directly from PyPI via `pip`:
 
 ```bash
@@ -26,19 +27,21 @@ If you're using `uv`:
 uv add openrouter-client
 ```
 
+### Build from source
 To build the project from source, clone the repo and then run (Requires `uv` to be installed - instructions [here](https://docs.astral.sh/uv/getting-started/installation/)):
 
 ```bash
 uv sync
 ```
 
-Requires following environment variable to be set:
+## Configuration
+**Requires** the following environment variable to be set:
 
 ```bash
 export OPENROUTER_API_KEY="<your_api_key>"
 ```
 
-Optional (with current defaults):
+Optional env variables (with their current defaults):
 
 ```bash
 export OPENROUTER_API_URL="https://openrouter.ai/api/v1"
@@ -50,11 +53,11 @@ export OPENROUTER_HEADER_REFERER="https://github.com/mrcodepanda/openrouter-clie
 ```
 Preferably, put these in an `.env` or `.env.dev` file in project root.
 
-The last two are added to the header automatically. These values are for app rankings on OpenRouter site. Free to change to your app and site, if you like.
+The last two are added to the request headers automatically. These values are for app rankings on OpenRouter site. Free to change to your app and site, if you like.
 
 ## Usage
 
-For using the api, here are the sample codes (most parameters in [OpenRouter REST API](https://openrouter.ai/docs/api-reference/overview) are available)
+For using the api, here are various ways to setup (almost all parameters in [OpenRouter REST API](https://openrouter.ai/docs/api-reference/overview) are available)
 
 ### Option 1: Use as a standalone FastAPI app
 
@@ -63,7 +66,7 @@ from openrouter import create_app
 
 app = create_app()
 
-# Run with uvicorn
+# Run with uvicorn (assuming main.py is the name of the file)
 # uvicorn main:app --reload
 ```
 
@@ -74,6 +77,10 @@ from fastapi import FastAPI
 from openrouter import api_router
 
 app = FastAPI()
+
+# You can add dependencies and other options available for FastAPI Routers as well. For eg.
+api_router.dependencies = [Depends(some_dependency)]
+
 app.include_router(api_router)
 
 # Now the OpenRouter endpoints are available at /ai/openrouter/*
@@ -91,14 +98,15 @@ request = ChatCompletionRequest(
     messages=[{"role": "user", "content": "Hello, how are you?"}],
     model="<model_name>"
 )
-response = create_chat_completion(request)
+
+response = await create_chat_completion(request)
 ```
 
 ## Testing
 
 ***Read [integration testing](#integration-testing) section before running tests***
 
-To run the tests:
+To run the tests, install test dependencies:
 ```bash
 # Using requirements file
 pip install -r requirements-dev.txt
