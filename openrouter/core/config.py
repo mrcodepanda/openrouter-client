@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     OPENROUTER_API_PREFIX: str = Field(default="/ai/openrouter")
     OPENROUTER_INTEGRATION_TESTS: bool = Field(default=False)
     OPENROUTER_API_TEST_MODEL: str = Field(default="meta-llama/llama-3.2-1b-instruct:free")
+    OPENROUTER_HEADER_TITLE: str = Field(default="OpenRouter-PyClient")
+    OPENROUTER_HEADER_REFERER: str = Field(default="https://github.com/mrcodepanda/openrouter-client")
 
 # Singleton instance
 settings = Settings()

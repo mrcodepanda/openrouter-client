@@ -1,56 +1,55 @@
-from typing import Dict, List, Optional, Union, Literal, Any
-from pydantic import BaseModel, Field
+from typing import List, Optional, Union, Literal
+from fastapi import HTTPException
+from pydantic import BaseModel, Field, model_validator
 
-from .helpers import (
-    NonChatChoice, NonStreamingChoice, StreamingChoice, ResponseUsage
-)
+from .helpers import ResponseUsage, ResponseChoiceModel
 
 class OpenRouterResponse(BaseModel):
-    pass
-
-class OpenRouterChatCompletionResponse(OpenRouterResponse):
-    """Full completion response (non-streaming)"""
+    """Chat response model"""
     id: str = Field(..., description="Unique identifier for the completion")
-    choices: List[NonStreamingChoice] = Field(..., description="List of completion choices")
+    choices: List[ResponseChoiceModel] = Field(..., description="List of completion choices")
     created: int = Field(..., description="Unix timestamp of when the completion was created")
     model: str = Field(..., description="Model used for completion")
-    object: Literal["chat.completion"] = "chat.completion"
+    object: Union[Literal["chat.completion"], Literal["chat.completion.chunk"]] = Field(..., description="Type of response object")
     system_fingerprint: Optional[str] = Field(
         None,
         description="System fingerprint used for content moderation (only present if the provider supports it)"
     )
-    usage: ResponseUsage = Field(..., description="Token usage statistics")
+    usage: Optional[ResponseUsage] = Field(None, description="Token usage statistics")
     model_owner: Optional[str] = Field(None, description="The owner/provider of the model")
 
+    @model_validator(mode='before')
+    @classmethod
+    def check_type(cls, values):
+        if not isinstance(values, dict):
+            raise HTTPException(
+                status_code=422,
+                detail=f"Response did not contain dictionary data in OpenRouter API response. Response: {values}"
+            )
+        # Make sure to check if 'choices' is present in the values
+        if 'choices' not in values:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Missing 'choices' field in OpenRouter API response. Response: {values}"
+            )
 
-class OpenRouterChatCompletionChunkResponse(OpenRouterResponse):
-    """Chunk response for streaming"""
-    id: str = Field(..., description="Unique identifier for the completion")
-    choices: List[StreamingChoice] = Field(..., description="List of completion choices for this chunk")
-    created: int = Field(..., description="Unix timestamp of when the completion was created")
-    model: str = Field(..., description="Model used for completion")
-    object: Literal["chat.completion.chunk"] = "chat.completion.chunk"
-    system_fingerprint: Optional[str] = Field(
-        None,
-        description="System fingerprint used for content moderation (only present if the provider supports it)"
-    )
-    usage: Optional[ResponseUsage] = Field(
-        None,
-        description="Token usage statistics (only in the final chunk for streaming)"
-    )
-    model_owner: Optional[str] = Field(None, description="The owner/provider of the model")
+        # We have to inject the type of choices returned specifically
+        # since the discriminators from OpenRouter API are fields and not
+        # values in the response data
+        object_type = values.get('object')
+        choice = values.get('choices')[0]
 
-
-class OpenRouterNonChatCompletionResponse(OpenRouterResponse):
-    """Non-chat completion response"""
-    id: str = Field(..., description="Unique identifier for the completion")
-    choices: List[NonChatChoice] = Field(..., description="List of completion choices")
-    created: int = Field(..., description="Unix timestamp of when the completion was created")
-    model: str = Field(..., description="Model used for completion")
-    object: Literal["chat.completion"] = "chat.completion"
-    system_fingerprint: Optional[str] = Field(
-        None,
-        description="System fingerprint used for content moderation (only present if the provider supports it)"
-    )
-    usage: ResponseUsage = Field(..., description="Token usage statistics")
-    model_owner: Optional[str] = Field(None, description="The owner/provider of the model")
+        if object_type == "chat.completion.chunk":
+            if 'text' in choice and 'delta' not in choice:
+                values['choices'][0]['delta'] = {'content': choice['text']}
+            values['choices'][0]['type'] = 'streaming'
+        elif object_type == "chat.completion":
+            if 'text' in choice:
+                values['choices'][0]['type'] = 'non_chat'
+            elif 'message' in choice:
+                values['choices'][0]['type'] = 'non_streaming'
+            else:
+                raise ValueError(f"Unknown choice type: {choice} in OpenRouter API response.")
+        else:
+            raise ValueError(f"Unknown response object with param 'object': {object_type} in OpenRouter API response.")
+        return values

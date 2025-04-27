@@ -7,7 +7,7 @@ from openrouter import create_app
 from openrouter.client import create_chat_completion, get_headers
 from openrouter.models.request import ChatCompletionRequest
 from openrouter.core.config import settings
-from openrouter.models.response import OpenRouterChatCompletionResponse
+from openrouter.models.response import OpenRouterResponse
 
 # Skip all tests in this module if integration testing is disabled
 pytestmark = pytest.mark.skipif(
@@ -61,7 +61,7 @@ async def test_chat_completion(use_env_api_key, test_model_name, test_prompt):
     response = await create_chat_completion(request)
 
     # Verify we got a proper response
-    assert isinstance(response, OpenRouterChatCompletionResponse)
+    assert isinstance(response, OpenRouterResponse)
     assert response.choices[0].message.content is not None
     assert len(response.choices[0].message.content.split()) <= 10  # Allow some flexibility
 

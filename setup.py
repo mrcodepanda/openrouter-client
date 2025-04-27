@@ -3,13 +3,7 @@ from setuptools import setup, find_packages
 setup(
     name="openrouter-client",
     version="0.1.0",
-    packages=find_packages(),
-    install_requires=[
-        "httpx",
-        "fastapi",
-        "pydantic",
-        "pydantic-settings",
-    ],
+    packages=find_packages(include=["openrouter", "openrouter.*"]),
     author="Sudhanshu Aggarwal (@mrcodepanda)",
     author_email="mrcodepanda@refactors.io",
     description="OpenRouter API client library",

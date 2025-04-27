@@ -7,16 +7,11 @@ from fastapi.responses import StreamingResponse
 
 from openrouter.core.config import settings
 from openrouter.models.request import ChatCompletionRequest
-from openrouter.models.response import (
-    OpenRouterChatCompletionResponse,
-    OpenRouterChatCompletionChunkResponse,
-    OpenRouterNonChatCompletionResponse,
-    OpenRouterResponse
-)
+from openrouter.models.response import OpenRouterResponse
 
 api_router = APIRouter(
     prefix=settings.OPENROUTER_API_PREFIX,
-    tags=["AI", "OpenRouter"],
+    tags=["OpenRouter"],
     responses={
         404: {"description": "Not Found"},
         500: {"description": "Internal Server Error"}
@@ -63,6 +58,8 @@ def get_headers() -> Dict[str, str]:
     return {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
+        'HTTP-Referer': settings.OPENROUTER_HEADER_REFERER,
+        'X-Title': settings.OPENROUTER_HEADER_TITLE,
     }
 
 
@@ -76,26 +73,19 @@ def parse_openrouter_response(data: Dict[str, Any]) -> OpenRouterResponse:
     Returns:
         The parsed response object of the appropriate type
     """
-    from openrouter.models.response import (
-        OpenRouterChatCompletionChunkResponse,
-        OpenRouterChatCompletionResponse,
-        OpenRouterNonChatCompletionResponse
-    )
-
-    print(f"Parsing OpenRouter response with object type: {data.get('object')}")
+    print(f"Parsing OpenRouter response with object type: {data.get('object')}. Response data: {data}")
     object_type = data.get("object")
 
-    if object_type == "chat.completion.chunk":
-        return OpenRouterChatCompletionChunkResponse(**data)
-    elif object_type == "chat.completion":
-        # Check if it's a non-chat completion (has 'text' in choices)
-        if data.get("choices") and any("text" in choice for choice in data["choices"]):
-            return OpenRouterNonChatCompletionResponse(**data)
-        return OpenRouterChatCompletionResponse(**data)
-
-    # Default case, try parsing as the base response
-    raise ValueError(f"Unknown response object type: {object_type}")
-
+    try:
+        # Make sure only valid object types are processed
+        if object_type == "chat.completion.chunk" or object_type == "chat.completion":
+            return OpenRouterResponse(**data)
+    except ValueError as e:
+        # Fail if the object type is not recognized
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unknown response object with param 'object': {object_type} in OpenRouter API response."
+        )
 
 
 async def stream_openrouter_response(response: httpx.Response) -> AsyncGenerator[str, Any]:
@@ -107,7 +97,6 @@ async def stream_openrouter_response(response: httpx.Response) -> AsyncGenerator
         # Handle SSE format (data: prefix)
         if decoded_line.startswith('data: '):
             decoded_line = decoded_line[6:]  # Remove 'data: ' prefix
-            print(f"Received SSE chunk: {decoded_line}")
             try:
                 # End of stream marker
                 if decoded_line =="[DONE]":
@@ -116,7 +105,7 @@ async def stream_openrouter_response(response: httpx.Response) -> AsyncGenerator
                 else:
                     data = json.loads(decoded_line)
                     # validate the response with pydantic model
-                    response_obj = OpenRouterChatCompletionChunkResponse(**data)
+                    response_obj = OpenRouterResponse(**data)
                     yield f"data: {json.dumps(response_obj.model_dump(exclude_none=True))}\n\n"
             except json.JSONDecodeError:
                 # Skip malformed JSON

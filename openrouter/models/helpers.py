@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Union, Literal, Any, Callable
+from typing import Dict, List, Optional, Union, Literal, Any
 from typing_extensions import Annotated
 
 from pydantic import BaseModel, Field, field_validator
@@ -175,13 +175,16 @@ class ResponseUsage(BaseModel):
 
 class NonChatChoice(BaseModel):
     """Choice in a non-chat (completion) response"""
+    type: Literal["non_chat"] = "non_chat"
     finish_reason: Optional[str] = Field(None, description="The reason generation stopped")
+    native_finish_reason: Optional[str] = Field(None, description="Native finish reason from the provider")
     text: str = Field(..., description="The generated text")
     error: Optional[ErrorResponse] = Field(None, description="Error information if request failed")
 
 
 class NonStreamingChoice(BaseModel):
     """Choice in a non-streaming response"""
+    type: Literal["non_streaming"] = "non_streaming"
     finish_reason: Optional[str] = Field(None, description="The reason generation stopped")
     native_finish_reason: Optional[str] = Field(None, description="Native finish reason from the provider")
     message: ResponseMessage = Field(..., description="The generated message")
@@ -190,7 +193,13 @@ class NonStreamingChoice(BaseModel):
 
 class StreamingChoice(BaseModel):
     """Choice in a streaming response"""
+    type: Literal["streaming"] = "streaming"
     finish_reason: Optional[str] = Field(None, description="The reason generation stopped (only in last chunk)")
     native_finish_reason: Optional[str] = Field(None, description="Native finish reason from the provider")
     delta: Delta = Field(..., description="The content delta for this streaming response")
     error: Optional[ErrorResponse] = Field(None, description="Error information if request failed")
+
+ResponseChoiceModel = Annotated[
+    Union[NonChatChoice, NonStreamingChoice, StreamingChoice],
+    Field(discriminator="type", description="Allowed values: 'non_chat', 'non_streaming', 'streaming'")
+]
