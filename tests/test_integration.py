@@ -1,10 +1,7 @@
 import pytest
-import os
-import asyncio
 import warnings
 
-from openrouter import create_app
-from openrouter.client import create_chat_completion, get_headers
+from openrouter.client import create_chat_completion
 from openrouter.models.request import ChatCompletionRequest
 from openrouter.core.config import settings
 from openrouter.models.response import OpenRouterResponse
@@ -81,7 +78,6 @@ async def test_streaming_completion(use_env_api_key, test_prompt):
 
     This test calls the OpenRouter API with streaming enabled and collects chunks.
     """
-    from fastapi import Request
     from fastapi.responses import StreamingResponse
     import json
 

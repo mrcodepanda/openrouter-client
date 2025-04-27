@@ -2,15 +2,13 @@
 # These tests use mocks to avoid making actual API calls
 # Make sure pytest is installed: pip install pytest pytest-asyncio
 import pytest
-import json
 from unittest.mock import patch, AsyncMock, MagicMock
 from fastapi.testclient import TestClient
-from httpx import AsyncClient, Response
+from httpx import Response
 
 from openrouter import create_app
-from openrouter.client import create_chat_completion, get_headers
+from openrouter.client import get_headers
 from openrouter.models.request import ChatCompletionRequest
-from openrouter.models.response import OpenRouterChatCompletionResponse
 from openrouter.core.config import settings
 
 
